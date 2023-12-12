@@ -17,4 +17,12 @@ The script will generate the HDF5 files in the same location as the input files.
 Consult `main.py` for the full set of possible arguments to the model. You can change the embedding and hidden layer sizes, whether weights are tied, dropout, batch size etc.
 
 ## Replication of Timkey and Linzen (2023)
-Data for replicating results from Timkey and Linzen (2023) "A Language Model with Limited Memory Capacity Captures Interference in Human Sentence Processing" can be found in the folder `emnlp_analysis_data`. I have compiled our analysis into a jupyter notebook `Analysis.ipynb`. Run this notebook first. This will generate the files needed to run the statistical analysis and generate plots in R, using the Rmd file `emnlp_analysis_data/emnlp_analysis.Rmd`. If you just want to look any any part of the analysis, the pre-computed results files are available in the analysis folder. Send an email or open an issue if you run into any difficulties!
+Data for replicating results from Timkey and Linzen (2023) "A Language Model with Limited Memory Capacity Captures Interference in Human Sentence Processing" can be found in the folder `emnlp_analysis_data`. 
+
+I have compiled our analysis into a jupyter notebook `Analysis.ipynb`. Run this notebook first. This will generate results for the first 2 experiments, and data for the statistical modeling component of the third experiment.
+
+The statistical analyses are done in R, using the Rmd file `emnlp_analysis_data/emnlp_analysis.Rmd`. If you just want to look any any part of the analysis, the pre-computed results files are available in the analysis folder. Send an email or open an issue if you run into any difficulties!
+
+### Pretrained Models and Training Data
+[Here](https://drive.google.com/drive/folders/1BlmQGuX_RP8hyveC1b2cXaBx6T4GyKtT?usp=sharing) are some of the files that are too large to include in this repository, including all of the pretrained models from the paper, the ccg tagged training corpus, and dependency parses for all sentences.
+
