@@ -1,0 +1,217 @@
+Old.item.no	New.item.no	condition	head	ppmod	adverb	verb
+1	1	a	The museum	of art	soon	OPEN
+1	1	b	The museum	of arts	soon	OPEN
+1	1	c	The museum	of art	soon	SHOOTS
+1	1	d	The museum	of the photographer	soon	SHOOTS
+1	1	e	The museum	of art	soon	SHOOT
+1	1	h	The museum	of arts	soon	SHOOT
+1	1	g	The museum	of the photographer	soon	SHOOT
+1	1	f	The museum	of the photographers	soon	SHOOT
+2	2	a	The shredder	near the table	usually	SQUEAL
+2	2	b	The shredder	near the tables	usually	SQUEAL
+2	2	c	The shredder	near the table	usually	SCANS
+2	2	d	The shredder	near the copier	usually	SCANS
+2	2	e	The shredder	near the table	usually	SCAN
+2	2	h	The shredder	near the tables	usually	SCAN
+2	2	g	The shredder	near the copier	usually	SCAN
+2	2	f	The shredder	near the copiers	usually	SCAN
+3	3	a	The car	with the scratch	silently	APPROACH
+3	3	b	The car	with the scratches	silently	APPROACH
+3	3	c	The car	with the scratch	loudly	TRANSMITS
+3	3	d	The car	with the radio	loudly	TRANSMITS
+3	3	e	The car	with the scratch	loudly	TRANSMIT
+3	3	h	The car	with the scratches	loudly	TRANSMIT
+3	3	g	The car	with the radio	loudly	TRANSMIT
+3	3	f	The car	with the radios	loudly	TRANSMIT
+4	4	a	The shelf	with the jar	softly	CREAK
+4	4	b	The shelf	with the jars	softly	CREAK
+4	4	c	The shelf	with the jar	delicately	BLOOMS
+4	4	d	The shelf	with the plant	delicately	BLOOMS
+4	4	e	The shelf	with the jar	delicately	BLOOM
+4	4	h	The shelf	with the jars	delicately	BLOOM
+4	4	g	The shelf	with the plant	delicately	BLOOM
+4	4	f	The shelf	with the plants	delicately	BLOOM
+6	5	a	The boat	with the flag	silently	GLIDE
+6	5	b	The boat	with the flags	silently	GLIDE
+6	5	c	The boat	with the flag	silently	ROWS
+6	5	d	The boat	with the contestant	silently	ROWS
+6	5	e	The boat	with the flag	silently	ROW
+6	5	h	The boat	with the flags	silently	ROW
+6	5	g	The boat	with the contestant	silently	ROW
+6	5	f	The boat	with the contestants	silently	ROW
+7	6	a	The exit	next to the light	apparently	LEAD
+7	6	b	The exit	next to the lights	apparently	LEAD
+7	6	c	The exit	next to the light	apparently	DRIES UP
+7	6	d	The exit	next to the creek	apparently	DRIES UP
+7	6	e	The exit	next to the light	apparently	DRY UP
+7	6	h	The exit	next to the lights	apparently	DRY UP
+7	6	g	The exit	next to the creek	apparently	DRY UP
+7	6	f	The exit	next to the creeks	apparently	DRY UP
+8	7	a	The stop	next to the sidewalk	usually	SHELTER
+8	7	b	The stop	next to the sidewalks	usually	SHELTER
+8	7	c	The stop	next to the sidewalk	usually	SELLS
+8	7	d	The stop	next to the shop 	usually	SELLS
+8	7	e	The stop	next to sidewalk	usually	SELL
+8	7	h	The stop	next to sidewalks	usually	SELL
+8	7	g	The stop	next to the shop 	usually	SELL
+8	7	f	The stop	next to the shops	usually	SELL
+9	8	a	The restaurant	with the fountain	admittedly	GO BANKRUPT
+9	8	b	The restaurant	with the fountains	admittedly	GO BANKRUPT
+9	8	c	The restaurant	with the fountain	admittedly	WITHERS
+9	8	d	The restaurant	with the garden	admittedly	WITHERS
+9	8	e	The restaurant	with the fountain	admittedly	WITHER
+9	8	h	The restaurant	with the fountains	admittedly	WITHER
+9	8	g	The restaurant	with the garden	admittedly	WITHER
+9	8	f	The restaurant	with the gardens	admittedly	WITHER
+10	9	a	The apartment	with the balcony	proudly	STAND
+10	9	b	The apartment	with the balcony	proudly	STAND
+10	9	c	The apartment	with the balcony	silently	DESCENDS
+10	9	d	The apartment	with the elevator	silently	DESCENDS
+10	9	e	The apartment	with the balcony	silently	DESCEND
+10	9	h	The apartment	with the balconies	silently	DESCEND
+10	9	g	The apartment	with the elevator	silently	DESCEND
+10	9	f	The apartment	with the elevators	silently	DESCEND
+11	10	a	The calendar 	with the mountain	always	HANG
+11	10	b	The calendar 	with the mountains	always	HANG
+11	10	c	The calendar 	with the mountain	always	SMILES
+11	10	d	The calendar 	with the lady	always	SMILES
+11	10	e	The calendar 	with the mountain	always	SMILE 
+11	10	h	The calendar 	with the mountains	always	SMILE 
+11	10	g	The calendar 	with the lady	always	SMILE 
+11	10	f	The calendar 	with the ladies	always	SMILE 
+12	11	a	The bucket	by the dryer	sometimes	LEAK
+12	11	b	The bucket	by the dryers	sometimes	LEAK
+12	11	c	The bucket	by the dryer	sometimes	COOKS
+12	11	d	The bucket	by the stove	sometimes	COOKS
+12	11	e	The bucket	by the dryer	sometimes	COOK 
+12	11	h	The bucket	by the dryers	sometimes	COOK 
+12	11	g	The bucket	by the stove	sometimes	COOK 
+12	11	f	The bucket	by the stoves	sometimes	COOK 
+13	12	a	The newsstand	near the bench	usually	SELL
+13	12	b	The newsstand	near the benches	usually	SELL
+13	12	c	The newsstand	near the bench	usually	SMELLS
+13	12	d	The newsstand	near the cafe	usually	SMELLS
+13	12	e	The newsstand	near the bench	usually	SMELL 
+13	12	h	The newsstand	near the benches	usually	SMELL 
+13	12	g	The newsstand	near the cafe	usually	SMELL 
+13	12	f	The newsstand	near the cafes	usually	SMELL 
+14	13	a	The fireplace	near the shelf	comfortably	WARM
+14	13	b	The fireplace	near the shelves	comfortably	WARM
+14	13	c	The fireplace	near the shelf	comfortably	ROCKS
+14	13	d	The fireplace	near the chair	comfortably	ROCKS
+14	13	e	The fireplace	near the shelf	comfortably	ROCK
+14	13	h	The fireplace	near the shelves	comfortably	ROCK
+14	13	g	The fireplace	near the chair	comfortably	ROCK
+14	13	f	The fireplace	near the chairs	comfortably	ROCK
+16	14	a	The bakery	near the building	rarely	SMELL 
+16	14	b	The bakery	near the buildings	rarely	SMELL 
+16	14	c	The bakery	near the building	rarely	SPRAYS
+16	14	d	The bakery	near the hose	rarely	SPRAYS
+16	14	e	The bakery	near the building	rarely	SPRAY 
+16	14	h	The bakery	near the buildings	rarely	SPRAY 
+16	14	g	The bakery	near the hose	rarely	SPRAY 
+16	14	f	The bakery	near the hoses	rarely	SPRAY 
+17	15	a	The cinema	near the playground	sometimes	ADVERTISE
+17	15	b	The cinema	near the playgrounds	sometimes	ADVERTISE
+17	15	c	The cinema	near the playground	sometimes	SHEDS
+17	15	d	The cinema	near the old tree	sometimes	SHEDS
+17	15	e	The cinema	near the playground	sometimes	SHED 
+17	15	h	The cinema	near the playgrounds	sometimes	SHED 
+17	15	g	The cinema	near the old tree	sometimes	SHED 
+17	15	f	The cinema	near the old trees	sometimes	SHED 
+20	16	a	The blender	next to the breadmaker	loudly	WHIRR
+20	16	b	The blender	next to the breadmakers	loudly	WHIRR
+20	16	c	The blender	next to the breadmaker	loudly	HISSES
+20	16	d	The blender	next to the coffee machine	loudly	HISSES
+20	16	e	The blender	next to the breadmaker	loudly	HISS 
+20	16	h	The blender	next to the breadmakers	loudly	HISS 
+20	16	g	The blender	next to the coffee machine	loudly	HISS 
+20	16	f	The blender	next to the coffee machines	loudly	HISS 
+21	17	a	The display	next to the plant	suddenly	FLICKER
+21	17	b	The display	next to the plants	suddenly	FLICKER
+21	17	c	The display	next to the plant	suddenly	CLICKS
+21	17	d	The display	next to the keyboard	suddenly	CLICKS
+21	17	e	The display	next to the plant	suddenly	CLICK
+21	17	h	The display	next to the plants	suddenly	CLICK
+21	17	g	The display	next to the keyboard	suddenly	CLICK
+21	17	f	The display	next to the keyboards	suddenly	CLICK
+22	18	a	The keyboard 	next to the display	apparently	CLICK
+22	18	b	The keyboard 	next to the displays	apparently	CLICK
+22	18	c	The keyboard 	next to the display	apparently	WITHERS
+22	18	d	The keyboard 	next to the plant	apparently	WITHERS
+22	18	e	The keyboard 	next to the display	apparently	WITHER
+22	18	h	The keyboard 	next to the displays	apparently	WITHER
+22	18	g	The keyboard 	next to the plant	apparently	WITHER
+22	18	f	The keyboard 	next to the plants	apparently	WITHER
+23	19	a	The meter	next to the mirror	regularly	TICK
+23	19	b	The meter	next to the mirrors	regularly	TICK
+23	19	c	The meter	next to the mirror	regularly	LEAKS
+23	19	d	The meter	next to the sink	regularly	LEAKS
+23	19	e	The meter	next to the mirror	regularly	LEAK
+23	19	h	The meter	next to the mirrors	regularly	LEAK
+23	19	g	The meter	next to the sink	regularly	LEAK
+23	19	f	The meter	next to the sinks	regularly	LEAK
+24	20	a	The pipe	below the switch	usually	DRIP
+24	20	b	The pipe	below the switches	usually	DRIP
+24	20	c	The pipe	below the switch	usually	SWINGS OUT
+24	20	d	The pipe	above the window	usually	SWINGS OUT
+24	20	e	The pipe	below the switch	usually	SWING OUT
+24	20	h	The pipe	below the switches	usually	SWING OUT
+24	20	g	The pipe	above the window	usually	SWING OUT
+24	20	f	The pipe	above the windows	usually	SWING OUT
+25	21	a	The radio	by the desk	usually	PLAY
+25	21	b	The radio	by the desks	usually	PLAY
+25	21	c	The radio	by the desk	usually	SHINES
+25	21	d	The radio	by the lamp	usually	SHINES
+25	21	e	The radio	by the desk	usually	SHINE
+25	21	h	The radio	by the desks	usually	SHINE
+25	21	g	The radio	by the lamp	usually	SHINE
+25	21	f	The radio	by the lamps	usually	SHINE
+26	22	a	The car	without any plate	suddenly	SLOW DOWN
+26	22	b	The car	without any plates	suddenly	SLOW DOWN
+26	22	c	The car	without any plate	suddenly	INFLATES
+26	22	d	The car	with the faulty airbag	suddenly	INFLATES
+26	22	e	The car	without any plate	suddenly	INFLATE
+26	22	h	The car	without any plates	suddenly	INFLATE
+26	22	g	The car	with the faulty airbag	suddenly	INFLATE
+26	22	f	The car	with the faulty airbags	suddenly	INFLATE
+27	23	a	The medication	for the allergy	obviously	HELP
+27	23	b	The medication	for the allergies	obviously	HELP
+27	23	c	The medication	for the allergy	obviously	SPREADS
+27	23	d	The medication	for the infection	obviously	SPREADS
+27	23	e	The medication	for the allergy	obviously	SPREAD 
+27	23	h	The medication	for the allergies	obviously	SPREAD 
+27	23	g	The medication	for the infection	obviously	SPREAD 
+27	23	f	The medication	for the infections	obviously	SPREAD 
+28	24	a	The treatment	for the infection	finally	WORK
+28	24	b	The treatment	for the infections	finally	WORK
+28	24	c	The treatment	for the infection	finally	CLOSES
+28	24	d	The treatment	for the wound	finally	CLOSES
+28	24	e	The treatment	for the infection	finally	CLOSE
+28	24	h	The treatment	for the infections	finally	CLOSE
+28	24	g	The treatment	for the wound	finally	CLOSE
+28	24	f	The treatment	for the wounds	finally	CLOSE
+29	25	a	The fence	around the garden	supposedly	CONCEAL
+29	25	b	The fence	around the gardens	supposedly	CONCEAL
+29	25	c	The fence	around the garden	supposedly	TEACHES
+29	25	d	The fence	around the school	supposedly	TEACHES
+29	25	e	The fence	around the garden	supposedly	TEACH
+29	25	h	The fence	around the gardens	supposedly	TEACH
+29	25	g	The fence	around the school	supposedly	TEACH
+29	25	f	The fence	around the schools	supposedly	TEACH
+30	26	a	The pond	with the bridge	clearly	DRY UP
+30	26	b	The pond	with the bridges	clearly	DRY UP
+30	26	c	The pond	with the bridge	clearly	SELLS
+30	26	d	The pond	near the farm stand	clearly	SELLS
+30	26	e	The pond	with the bridge	clearly	SELL
+30	26	h	The pond	with the bridges	clearly	SELL
+30	26	g	The pond	near the farm stand	clearly	SELL
+30	26	f	The pond	near the farm stands	clearly	SELL
+31	27	a	The mansion	near the hill	allegedly	COST
+31	27	b	The mansion	near the hills	allegedly	COST
+31	27	c	The mansion	near the hill	allegedly	DRIES UP
+31	27	d	The mansion	near the pond	allegedly	DRIES UP
+31	27	e	The mansion	near the hill	allegedly	DRY UP
+31	27	h	The mansion	near the hills	allegedly	DRY UP
+31	27	g	The mansion	near the pond	allegedly	DRY UP
+31	27	f	The mansion	near the ponds	allegedly	DRY UP

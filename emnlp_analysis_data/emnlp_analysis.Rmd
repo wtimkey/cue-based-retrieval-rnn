@@ -1,0 +1,1120 @@
+---
+title: "Statistical Modeling for Findings of EMNLP 2023 Paper"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(xtable)
+library(glmmTMB)
+library(cowplot)
+library(grid)
+library(gridExtra)
+
+pallete = c("#318480", "#b4464f", "#94258b", "#8a7500")
+```
+
+```{r}
+l_and_m_exp3_df <- read.csv("./laurinavichyute_malsburg_2021/exp3_results.csv")
+l_and_m_exp_gpt2_df <- read.csv("./laurinavichyute_malsburg_2021/exp3_results_gpt2.csv")
+l_and_m_exp3_df <- rbind(l_and_m_exp3_df, l_and_m_exp_gpt2_df)
+
+l_and_m_exp3_df$violation  <- factor(l_and_m_exp3_df$violation , levels = c("grammatical", "semantic", "double"))
+l_and_m_exp3_df$attraction  <- factor(l_and_m_exp3_df$attraction , levels = c("none", "double", "semantic", "grammatical"))
+
+l_and_m_exp3_df$rel_target_attn <- l_and_m_exp3_df$target_attn / (l_and_m_exp3_df$target_attn + l_and_m_exp3_df$dist_attn)
+l_and_m_exp3_df$rel_dist_attn <- l_and_m_exp3_df$dist_attn / (l_and_m_exp3_df$target_attn + l_and_m_exp3_df$dist_attn)
+l_and_m_exp3_df$single_attr <- l_and_m_exp3_df$attraction == 'semantic' | l_and_m_exp3_df$attraction == 'grammatical'
+l_and_m_exp3_df$sem_attr <- l_and_m_exp3_df$attraction == 'semantic' | l_and_m_exp3_df$attraction == 'double'
+l_and_m_exp3_df$gram_attr <- l_and_m_exp3_df$attraction == 'grammatical' | l_and_m_exp3_df$attraction == 'double'
+
+l_and_m_3_cbrnn = l_and_m_exp3_df[l_and_m_exp3_df$model_arch == 'cbrnn',]
+l_and_m_3_cbrnn_0 = l_and_m_exp3_df[l_and_m_exp3_df$model_type == 'cbrnn_256_0_soft',]
+l_and_m_3_cbrnn_1 = l_and_m_exp3_df[l_and_m_exp3_df$model_type == 'cbrnn_256_1_soft',]
+l_and_m_3_cbrnn_5 = l_and_m_exp3_df[l_and_m_exp3_df$model_type == 'cbrnn_256_5_soft',]
+
+l_and_m_3_gpt2 = l_and_m_exp3_df[l_and_m_exp3_df$model_arch == 'gpt2',]
+l_and_m_3_gpt2_4_3 = l_and_m_exp3_df[l_and_m_exp3_df$model == 'gpt2_4_3',]
+l_and_m_3_gpt2_3_6 = l_and_m_exp3_df[l_and_m_exp3_df$model == 'gpt2_3_6',]
+l_and_m_3_gpt2_6_0 = l_and_m_exp3_df[l_and_m_exp3_df$model == 'gpt2_6_0',]
+l_and_m_3_gpt2_2_9 = l_and_m_exp3_df[l_and_m_exp3_df$model == 'gpt2_2_9',]
+
+l_and_m_3_lstm = l_and_m_exp3_df[l_and_m_exp3_df$model_arch == 'lstm',]
+
+```
+
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+lm2_human <- data.frame(attraction=c("none", "grammatical", "none", "semantic", "none", "double", "semantic", "grammatical"),
+                       violation=c("grammatical", "grammatical", "semantic", "semantic", "double", "double", "double", "double"),
+                       err_rate=c(66,39,69,39,89,58,77,85),
+                       err_min=c(57,29,54,25,84,48,69,78),
+                       err_max=c(75,50,82,53,94,69,84,90)
+                       )
+lm2_human$violation  <- factor(lm2_human$violation , levels = c("grammatical", "semantic", "double"))
+lm2_human$attraction  <- factor(lm2_human$attraction , levels = c("none", "double", "semantic", "grammatical"))
+lm2_human_acc_plt <- ggplot(data=lm2_human, aes(y=err_rate, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+geom_errorbar(position=position_dodge(width=0.9), aes(ymin = err_min, ymax = err_max, width = 0.75)) +
+labs(y="% judged implausible", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "Semantic attr", "Morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+  ggtitle("Human Plausibility Ratings") +
+ylim(25, 100)
+legend <- cowplot::get_legend(lm2_human)
+lm2_human_acc_plt <- lm2_human_acc_plt + theme(legend.position="none")
+lm2_human_acc_plt
+
+```
+
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+model_means <- l_and_m_3_cbrnn %>% group_by(attraction, violation) %>% summarize(surp = mean(surp))
+
+means <- l_and_m_3_cbrnn %>% group_by(model, attraction, violation, model_type) %>% summarize(surp = mean(surp))
+
+l_and_m_3_cbrnn_surp_plot <- ggplot(data=l_and_m_3_cbrnn, aes(y=surp, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Surprisal (bits)", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.1)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Surprisal") +
+coord_cartesian(ylim = c(8.5, 12.0))
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_cbrnn_surp_plot <- l_and_m_3_cbrnn_surp_plot + theme(legend.position="none")
+l_and_m_3_cbrnn_surp_plot
+```
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+model_means <- l_and_m_3_cbrnn %>% group_by(attraction, violation) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+means <- l_and_m_3_cbrnn %>% group_by(model, attraction, violation, model_type) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot <- ggplot(data=l_and_m_3_cbrnn, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Relative Attention")
+
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot <- l_and_m_3_rel_attn_plot + theme(legend.position="none")
+l_and_m_3_rel_attn_plot
+
+```
+
+```{r}
+g <- grid.arrange(lm2_human_acc_plt, l_and_m_3_cbrnn_surp_plot, l_and_m_3_rel_attn_plot,
+             nrow = 1, widths = c(4, 4, 4), top=textGrob('CBRNN_CCG5', gp=gpar(fontsize=18,font=8)))
+
+g <- grid.arrange(lm2_human_acc_plt, l_and_m_3_cbrnn_surp_plot, l_and_m_3_rel_attn_plot,
+             nrow = 1, widths = c(4, 4, 4))
+
+ggsave("semantic_attr_plots_ccg.png", g, width=12, height=3.5)
+```
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+
+means <- l_and_m_3_gpt2_4_3 %>% group_by(item, attraction, violation) %>% summarize(surp = mean(surp))
+
+l_and_m_3_gpt2_surp_plot <- ggplot(data=l_and_m_3_gpt2_4_3, aes(y=surp, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Surprisal (bits)", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.1)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("GPT-2 Surprisal")+
+coord_cartesian(ylim = c(8.5, 12.0))
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_gpt2_surp_plot <- l_and_m_3_gpt2_surp_plot + theme(legend.position="none")
+l_and_m_3_gpt2_surp_plot
+```
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_gpt2_4_3 %>% group_by(item, attraction, violation) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_gpt2_4_3 <- ggplot(data=l_and_m_3_gpt2_4_3, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 14, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("GPT-2 Relative Attention (head 4_3)")
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_gpt2_4_3 <- l_and_m_3_rel_attn_plot_gpt2_4_3 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_gpt2_4_3
+
+```
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_gpt2_3_6 %>% group_by(item, attraction, violation) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_gpt2_3_6 <- ggplot(data=l_and_m_3_gpt2_3_6, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 14, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("GPT-2 Relative Attention (head 3_6)")
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_gpt2_3_6 <- l_and_m_3_rel_attn_plot_gpt2_3_6 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_gpt2_3_6
+```
+
+
+
+```{r}
+g <- grid.arrange(l_and_m_3_gpt2_surp_plot, l_and_m_3_rel_attn_plot_gpt2_4_3, l_and_m_3_rel_attn_plot_gpt2_3_6,
+             nrow = 1, widths = c(4, 4, 4), top=textGrob('GPT-2', gp=gpar(fontsize=18,font=8)))
+
+
+ggsave("semantic_attr_plots_gpt.png", g, width=12, height=3.5)
+
+g <- grid.arrange(lm2_human_acc_plt, l_and_m_3_cbrnn_surp_plot, l_and_m_3_gpt2_surp_plot, l_and_m_3_rel_attn_plot, l_and_m_3_rel_attn_plot_gpt2_4_3, l_and_m_3_rel_attn_plot_gpt2_3_6,
+             nrow = 2, widths = c(4, 4, 4))
+
+ggsave("semantic_attr_plots_all.png", g, width=16, height=7)
+
+
+```
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_0 %>% group_by(model, attraction, violation, model_type) %>% summarize(surp = mean(surp))
+
+l_and_m_3_cbrnn_surp_plot_0 <- ggplot(data=l_and_m_3_cbrnn_0, aes(y=surp, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Surprisal (bits)", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.1)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Surprisal (α = 0)") +
+coord_cartesian(ylim = c(8.5, 12.0))
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_cbrnn_surp_plot_0 <- l_and_m_3_cbrnn_surp_plot_0 + theme(legend.position="none")
+l_and_m_3_cbrnn_surp_plot_0
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_0 %>% group_by(model, attraction, violation, model_type) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_0 <- ggplot(data=l_and_m_3_cbrnn_0, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Relative Attention (α = 0)")
+
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_0 <- l_and_m_3_rel_attn_plot_0 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_0
+
+
+
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_1 %>% group_by(model, attraction, violation, model_type) %>% summarize(surp = mean(surp))
+
+l_and_m_3_cbrnn_surp_plot_1 <- ggplot(data=l_and_m_3_cbrnn_1, aes(y=surp, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Surprisal (bits)", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.1)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Surprisal (α = 1)") +
+coord_cartesian(ylim = c(8.5, 12.0))
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_cbrnn_surp_plot_1 <- l_and_m_3_cbrnn_surp_plot_1 + theme(legend.position="none")
+l_and_m_3_cbrnn_surp_plot_1
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_1 %>% group_by(model, attraction, violation, model_type) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_1 <- ggplot(data=l_and_m_3_cbrnn_1, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Relative Attention (α = 1)")
+
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_1 <- l_and_m_3_rel_attn_plot_1 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_1
+
+
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_5 %>% group_by(model, attraction, violation, model_type) %>% summarize(surp = mean(surp))
+
+l_and_m_3_cbrnn_surp_plot_5 <- ggplot(data=l_and_m_3_cbrnn_5, aes(y=surp, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Surprisal (bits)", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.1)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Surprisal (α = 5)") +
+coord_cartesian(ylim = c(8.5, 12.0))
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_cbrnn_surp_plot_5 <- l_and_m_3_cbrnn_surp_plot_5 + theme(legend.position="none")
+l_and_m_3_cbrnn_surp_plot_5
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_cbrnn_5 %>% group_by(model, attraction, violation, model_type) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_5 <- ggplot(data=l_and_m_3_cbrnn_5, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 16, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("CBR-RNN Relative Attention (α = 5)")
+
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_5 <- l_and_m_3_rel_attn_plot_5 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_5
+
+
+
+```
+
+```{r}
+g <- grid.arrange(l_and_m_3_cbrnn_surp_plot_0, l_and_m_3_rel_attn_plot_0, l_and_m_3_cbrnn_surp_plot_1, l_and_m_3_rel_attn_plot_1, l_and_m_3_cbrnn_surp_plot_5, l_and_m_3_rel_attn_plot_5,
+             nrow = 3, widths = c(2, 2))
+
+ggsave("semantic_attr_plots_byccg_weight.png", g, width=10, height=10.5)
+```
+
+```{r}
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_gpt2_6_0 %>% group_by(item, attraction, violation) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_gpt2_6_0 <- ggplot(data=l_and_m_3_gpt2_6_0, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 14, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("GPT-2 Relative Attention (head 6_0)")
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_gpt2_6_0 <- l_and_m_3_rel_attn_plot_gpt2_6_0 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_gpt2_6_0
+
+
+options(repr.plot.width=4, repr.plot.height=4)
+
+means <- l_and_m_3_gpt2_2_9 %>% group_by(item, attraction, violation) %>% summarize(rel_target_attn = mean(rel_target_attn))
+
+l_and_m_3_rel_attn_plot_gpt2_2_9 <- ggplot(data=l_and_m_3_gpt2_2_9, aes(y=rel_target_attn, x=violation, color=attraction)) +
+geom_point(stat="summary", position=position_dodge(width=0.9), fun = "mean", size=3, shape="circle") + 
+stat_summary(fun.data = mean_se,  position=position_dodge(width=0.9), width = 0.75, geom = "errorbar") +
+#geom_point(data=means, shape=16, size=2, alpha = .5,
+#           position=position_jitterdodge(jitter.height=0, jitter.width = 0.3, dodge.width=0.9)) +
+labs(y=NULL, x = "", color="") +
+labs(y="Relative Attention Weight", x = "", color="") +
+scale_color_manual(labels=c("No attr.",
+                          "Double attr", "semantic attr", "morphosyntactic attr."), values=pallete) +
+scale_x_discrete(labels=c("A     B\nAgreement",
+                          "C     D\nSemantic", "E   F   G   H\nDouble")) +
+scale_y_continuous(
+  labels = scales::number_format(accuracy = 0.01)) +
+theme_bw() +
+theme(plot.title = element_text(size = 14, face = "bold"), axis.text.x=element_text( size=14), axis.text.y=element_text(size=12),
+      axis.title.y=element_text(size=12),
+      strip.text=element_text(size=20), legend.text=element_text(size=20)) +
+ggtitle("GPT-2 Relative Attention (head 2_9)")
+#legend <- cowplot::get_legend(plt)
+l_and_m_3_rel_attn_plot_gpt2_2_9 <- l_and_m_3_rel_attn_plot_gpt2_2_9 + theme(legend.position="none")
+l_and_m_3_rel_attn_plot_gpt2_2_9
+
+```
+```{r}
+g <- grid.arrange(l_and_m_3_rel_attn_plot_gpt2_6_0, l_and_m_3_rel_attn_plot_gpt2_2_9, nrow = 1, widths = c(2, 2))
+
+ggsave("semantic_attr_plots_gpt2_extra.png", g, width=10, height=3.5)
+```
+
+
+
+```{r}
+#single grammatical attraction effect
+
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="grammatical"), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+print('CBR-RNN Rel Attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="grammatical"), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, violation=="grammatical"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+```
+
+```{r}
+#single semantic attraction effect
+
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="semantic"), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel Attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="semantic"), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, violation=="semantic"), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+```
+
+```{r}
+#difference in grammatical and semantic attraction effect sizes
+#single semantic attraction effect
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation!="double"), 
+              surp ~ single_attr*violation + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation!="double"), 
+              surp ~ single_attr*violation + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, violation!="double"), 
+              rel_target_attn ~ single_attr*violation + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+```{r}
+#double grammatical attraction effect
+
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, (violation=="double" & (attraction=="none" | attraction=="grammatical"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+```{r}
+#double semantic attraction effect
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, (violation=="double" & (attraction=="none" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+```{r}
+#difference in single-attraction effects
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, (violation=="double" & (attraction=="grammatical" | attraction=="semantic"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+
+
+```{r}
+#double double attraction effect
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              surp ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              surp ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, (violation=="double" & (attraction=="none" | attraction=="double"))), 
+              rel_target_attn ~ attraction + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+
+```{r}
+#additivity of attraction effect
+
+print('CBR-RNN Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="double"), 
+              surp ~ gram_attr*sem_attr + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn.')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_0, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 1)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_1, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('CBR-RNN Rel attn. (alpha = 5)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_cbrnn_5, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) + (1 | model))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Surprisal')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="double"), 
+              surp ~ gram_attr*sem_attr + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head4_3)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_4_3, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head3_6)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_3_6, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head6_0)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_6_0, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item))
+
+summary(l_and_m_exp3_lm)
+
+print('--------------------------------------------------------------------------------')
+
+print('GPT-2 Rel Attn (head2_9)')
+l_and_m_exp3_lm <- lmer(data=subset(l_and_m_3_gpt2_2_9, violation=="double"), 
+              rel_target_attn ~ gram_attr*sem_attr + (1 | item) )
+
+summary(l_and_m_exp3_lm)
+```
+
+
+
