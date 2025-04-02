@@ -304,6 +304,11 @@ def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     if(args.objective == 'lm'):
         total_loss = {'lm':[0.0, 0]}
+        lm_input_mask = torch.ones(data_source.input_toks[0].shape[-1], len(data_source.input_toks[0]), len(data_source.input_toks[0]) + 1)
+        lm_input_mask[:,0,1:] = 0
+        lm_input_mask[:,1:,0] = 0
+        lm_input_mask[:,2:,1] = 0
+        lm_input_mask = lm_input_mask.log()
     elif(args.objective == 'lc_parsing' or args.objective == 'dep_parsing'):
         total_loss = {'lm':[0.0, 0], 'terminal':[0.0, 0], 'nt':[0.0, 0]}
     if(args.aux_objective):
@@ -318,7 +323,10 @@ def evaluate(data_source):
         for batch in range(len(data_source)):
             batch_data = data_source.input_toks[batch]
             if(args.model == 'CBRRNN'):
-                batch_masks = data_source.input_masks[batch]
+                if(curr_train_chunk.input_masks is not None):
+                    batch_masks = batch_data.input_masks[batch]
+                else:
+                    batch_masks = lm_input_mask
                 cache = model.init_cache(batch_data)
                 output, _, aux_preds, _ = model(batch_data[:-1], cache, masks=batch_masks[:,:-1]) 
             else:
